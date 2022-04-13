@@ -5,7 +5,6 @@
 import requests 
 import pandas as pd 
 from bs4 import BeautifulSoup
-outputDict = pd.DataFrame({},columns = ['pricing', 'range', 'performance','charging','efficiency','real-consumption'])
 
 # In[]:
 def organizeCharge(tupleArr):
@@ -22,12 +21,23 @@ def organizeCharge(tupleArr):
     output.rename(columns={0:titleText},inplace=True)
     return output
 
+# In[]:
+def groupArrs(arr):
+    returnArr = []
+    for i in range(len(arr)):
+        appender = pd.concat([arr[i],arr[i+1]])
+        returnArr.append(appender)    
+    return returnArr
+
 # In[4]:
 page = requests.get('https://ev-database.uk/car/1541/MG-ZS-EV-Long-Range')
 soupTemp = BeautifulSoup(page.text, 'html.parser')
 titleText = soupTemp.title.text
 tableTemp = pd.read_html('https://ev-database.uk/car/1541/MG-ZS-EV-Long-Range')
+tableTemp2 = pd.read_html('https://ev-database.org/car/1591/Tesla-Model-3-Long-Range-Dual-Motor')
 
+#In[]:
+pageTest = requests.get("https://ev-database.org/car/1591/Tesla-Model-3-Long-Range-Dual-Motor")
 
 # In[ ]:
 for i in range(len(tableTemp)-1,0,-1):
