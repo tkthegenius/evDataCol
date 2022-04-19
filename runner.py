@@ -1,89 +1,94 @@
-#!/usr/bin/env python
-# coding: utf-8
+from __future__ import print_function
 
-# In[1]:
-import requests 
+import os
+import os.path
+import sys
 import pandas as pd 
+import datetime 
+import json
+import requests 
+
 from bs4 import BeautifulSoup
+from main import createDataBase 
+from gooey import Gooey, GooeyParser
 
-# In[]:
-def organizeCharge(tupleArr):
-    output = pd.DataFrame({})
-    for i in range(len(tupleArr)):
-        details = tupleArr[i][1]
-        keys = details.keys()
-        details2 = details.drop(keys[0], axis=1)
-        details['join'] = details2.apply('----'.join, axis=1)
-        tempOutput = details[[keys[0],'join']].apply(tuple, axis=1)
-        output = pd.concat([output, tempOutput])
-    idx = pd.Series(['charge specification']*len(output))
-    output = output.set_index(idx)
-    output.rename(columns={0:titleText},inplace=True)
-    return output
-
-# In[]:
-def groupArrs(arr):
-    returnArr = []
-    for i in range(len(arr)):
-        appender = pd.concat([arr[i],arr[i+1]])
-        returnArr.append(appender)    
-    return returnArr
-
-# In[4]:
-page = requests.get('https://ev-database.uk/car/1541/MG-ZS-EV-Long-Range')
-soupTemp = BeautifulSoup(page.text, 'html.parser')
-titleText = soupTemp.title.text
-tableTemp = pd.read_html('https://ev-database.uk/car/1541/MG-ZS-EV-Long-Range')
-tableTemp2 = pd.read_html('https://ev-database.org/car/1591/Tesla-Model-3-Long-Range-Dual-Motor')
-
-#In[]:
-pageTest = requests.get("https://ev-database.org/car/1591/Tesla-Model-3-Long-Range-Dual-Motor")
-
-# In[ ]:
-for i in range(len(tableTemp)-1,0,-1):
-    if tableTemp[i].empty:
-        del tableTemp[i]
-
-# In[ ]:
-arrs = ['pricing','pricing','range','range','performance','performance','charging','charging','efficiency','efficiency','efficiency','efficiency','real consumption','real consumption','dimensions','load data','miscellaneous','miscellaneous','BIK','BIK','BIK','BIK','BIK','BIK','charge specification','charge specification']
-arr = [arrs,tableTemp]
-tuples = list(zip(*arr))
-
-# In[ ]:
-keys = []
-outputCell = {}
-for x in tuples:
-    key = x[0]
-    value = x[1]
-    if key != 'charge specification':
-        if key not in keys:
-            outputCell[key] = []
-            keys.append(key)
-            for i in range(len(value)):
-                tempTuple = (value[0][i],value[1][i])
-                outputCell[key].append(tempTuple)
-        else:
-            for i in range(len(value)):
-                tempTuple = (value[0][i],value[1][i])
-                outputCell[key].append(tempTuple)
+URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-slider-range:prev~next=0~1200|range-slider-acceleration:prev~next=2~23|range-slider-topspeed:prev~next=110~450|range-slider-battery:prev~next=10~200|range-slider-towweight:prev~next=0~2500|range-slider-fastcharge:prev~next=0~1500|paging:currentPage=0|paging:number=9"
 
 
-# In[ ]:
-def tupleAdd(adder, title):
-    addDf = pd.Series(adder[title]).to_frame(titleText)
-    idx = pd.Series([title]*len(adder[title]))
-    addDf = addDf.set_index(idx)
-    return addDf     
+@Gooey(program_name="EV Database Generator",
+       program_description="The world of EV data in your desktop",
+       menu=[{'name': 'Help', 'items': [{
+           'type': 'AboutDialog',
+           'menuTitle': 'About',
+           'name': 'EV Database Generator',
+           'description': 'Accelerated EV data collector',
+           'version': '1.0.0',
+           'copyright': '2022 TK',
+           'developer': 'Taekyu Kim'
+       },
+           {'type': 'MessageDialog',
+            'menuTitle': 'How to use',
+            'name': 'How to use',
+            'message': "Input the directory you want your information in and click the start button."}
+       ]}])
+def parse_args():
+    """ Use GooeyParser to build up the arguments we will use in our script
+    Save the arguments in a default json file so that we can retrieve them
+    every time we run the script.
+    """
+    stored_args = {}
+    # get the script name without the extension & use it to build up
+    # the json filename
+    script_name = os.path.splitext(os.path.basename(__file__))[0]
+    args_file = "{}-args.json".format(script_name)
+    # Read in the prior arguments as a dictionary
+    if os.path.isfile(args_file):
+        with open(args_file) as data_file:
+            stored_args = json.load(data_file)
+    parser = GooeyParser(description='Company Financial Data Collector')
+    parser.add_argument('Output_Directory',
+                        action='store',
+                        widget='DirChooser',
+                        default=stored_args.get('Output_Directory'),
+                        help="Output directory to save collected data file",
+                        gooey_options=dict(
+                            full_width=True
+                        )
+                        )
+    args = parser.parse_args()
+    # Store the values of the arguments so we have them next time we run
+    with open(args_file, 'w') as data_file:
+        # Using vars(args) returns the data as a dictionary
+        json.dump(vars(args), data_file)
+    return args
 
-# In[ ]:
-out = pd.DataFrame({})
-for key in outputCell.keys():
-    out = pd.concat([out, tupleAdd(outputCell,key)])
-out.index_name = "category"
+def save_results(collected_data, output):
+    """ save created financial data dataframe into selected folder for output
+    """
+    now = datetime.datetime.now()
+    dateNTime = now.strftime("%Y%m%d_%H%M%S")
+    # collected_data = collected_data.reset_index()
+    outputFileDir = output + "/" + dateNTime + "evDatabase.xlsx"
+    collected_data.to_excel(outputFileDir)
 
-
-# In[ ]:
-
-tester = [tuples[len(tuples)-2],tuples[len(tuples)-1]]
-out = pd.concat([out,organizeCharge(tester)])
-out.to_excel("test_1519070422.xlsx")
+if __name__ == '__main__':
+    conf = parse_args()
+    print("Reading file")
+    print("Retrieving and saving requested data")
+    page = requests.get(URL)
+    soupTemp = BeautifulSoup(page.text,'html.parser')
+    cars = soupTemp.findAll('div',{'class':'title-wrap'})
+    titles = []
+    ids = []
+    for x in cars:
+        titles.append(x.find('a',{'class':'title'}).text)
+        ids.append(x.find('a',{'class':'title'})['href'])
+    
+    outputFile = pd.DataFrame({})
+    
+    for id in ids:
+        newURL = "https://ev-database.org" + id
+        print(createDataBase(newURL))
+        outputFile = pd.concat([outputFile,createDataBase(newURL)], axis=1, ignore_index=True)    
+    save_results(outputFile, conf.Output_Directory)
+    print("Done")
