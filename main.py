@@ -1,6 +1,7 @@
 # In[]:
 import requests 
 import datetime
+import time
 import pandas as pd 
 from bs4 import BeautifulSoup
 
@@ -9,13 +10,28 @@ from bs4 import BeautifulSoup
 def organize(arr):
     returnArr = []
     for i in range(0,len(arr),2):
-        appender = pd.concat([arr[i],arr[i+1]],ignore_index=True)
+        cols = arr[i].columns
+        if len(cols) == 1:
+            pass
+        if i == len(arr)-1:
+            appender = pd.DataFrame(arr[i])
+        else:
+            appender = pd.concat([arr[i],arr[i+1]],ignore_index=True)
         returnArr.append(appender)
     return returnArr
 
 # In[]:
 def getURLs(URL):
+    print ("URL: ", URL)
     page = requests.get(URL)
+    print(page.status_code)
+    if page.status_code == 429:
+        print("The website wants you to take a break from requesting information. Resting for: 30 seconds, then retrying...")
+        time.sleep(30)
+        try:
+            page = requests.get(URL)
+        except:
+            raise ConnectionError("This website does not want you to access anymore information.")
     soupTemp = BeautifulSoup(page.text, 'html.parser')
     titleText = soupTemp.title.text
     titleText = titleText.split('price')[0]
@@ -29,54 +45,41 @@ def getURLs(URL):
 
     arrs_temp = []
     for smallArr in tableTemp:
-        
         checker = smallArr.columns[0]
         if type(checker) == tuple:
             checker = checker[0]
-        if checker == "United Kingdom":
+        checker = smallArr[checker][0]
+        if "United Kingdom" in checker:
             arrs_temp.append('pricing')
-            print('added pricing')
-        elif checker == "City - Cold Weather":
+        elif "City - Cold Weather" in checker :
             if 'range' not in arrs_temp:
                 arrs_temp.append('range')
-                print('added range')
             else:
                 arrs_temp.append('real energy consumption')
-                print('added real energy consumption')
-        elif checker == "Acceleration 0 - 100 km/h":
+        elif "Acceleration 0 - 100 km/h" in checker :
             arrs_temp.append('performance')
-            print('added performance')
-        elif checker == "Battery Capacity *":
+        elif "Battery Capacity" in checker:
             arrs_temp.append('battery')
-            print('added battery')
-        elif checker == "Charge Port":
+        elif "Charge Port" in checker:
             arrs_temp.append('charging')
-            print('added charging')
-        elif checker == "Range":
+        elif "Range" in checker:
             if 'energy consumption' not in arrs_temp:
                 arrs_temp.append('energy consumption')
-                print('added energy consumption')
             else:
                 arrs_temp.append('additional energy consumption')
-                print('added additional energy consumption')
-        elif checker == "Safety Rating":
+        elif "Safety Rating" in checker:
             arrs_temp.append('safety')
-            print('added safety')
-        elif checker == "Length":
+        elif "Length" in checker:
             arrs_temp.append('dimensions and weight')
-            print('added dimensions and weight')
-        elif checker == "Seats":
+        elif "Seats" in checker:
             arrs_temp.append('miscellaneous')
-            print('added miscellaneous')
-        elif checker == "Wall Plug (2.3 kW)":
+        elif "Wall Plug (2.3 kW)" in checker:
             arrs_temp.append('charge specifications')
-            print('added charge specifications')
         else:
             arrs_temp.append('additional information')
-            print('added additional information')
 
-    if len(arrs_temp) > len(tableTemp):
-        for i in range(len(arrs_temp) - len(tableTemp)):
+    if len(arrs_temp) < len(tableTemp):
+        for i in range(len(tableTemp) - len(arrs_temp)):
             arrs_temp.append("more information")
     arr = [arrs_temp,tableTemp]
     tuples = list(zip(*arr))
@@ -85,7 +88,7 @@ def getURLs(URL):
     for x in tuples:
         key = x[0]
         value = x[1]
-        if key != 'charge specification':
+        if key != 'charge specifications':
             if key not in keys:
                 outputCell[key] = []
                 keys.append(key)
@@ -95,19 +98,18 @@ def getURLs(URL):
             else:
                 for i in range(len(value)):
                     tempTuple = (value[0][i],value[1][i])
-                    outputCell[key].append(tempTuple)     
+                    outputCell[key].append(tempTuple)    
     return titleText, tuples, outputCell  
 
 # In[]:
-def organizeCharge(tupleArr):
-    output = pd.DataFrame({})
-    for i in range(len(tupleArr)):
-        details = tupleArr[i][1]
-        keys = details.keys()
-        details2 = details.drop(keys[0], axis=1)
-        details['join'] = details2.apply('----'.join, axis=1)
-        tempOutput = details[[keys[0],'join']].apply(tuple, axis=1)
-        output = pd.concat([output, tempOutput])
+def organizeCharge(details):
+    output = pd.DataFrame({})    
+    details = details[1]
+    keys = details.keys()
+    details2 = details.drop(keys[0], axis=1)
+    details['join'] = details2.apply(lambda row: '----'.join(row.values.astype(str)), axis=1)
+    tempOutput = details[[keys[0],'join']].apply(tuple, axis=1)
+    output = pd.concat([output, tempOutput])
     idx = pd.Series(['charge specification']*len(output))
     output = output.set_index(idx)
     return output
@@ -125,8 +127,10 @@ def createDataBase(URL):
     out = pd.DataFrame({})
     for key in outputCell.keys():
         out = pd.concat([out, tupleAdd(outputCell,key)])
-    chargeSpecs = [tuples[len(tuples)-2],tuples[len(tuples)-1]]
+    chargeSpecs = tuples[len(tuples)-1]
     out = pd.concat([out,organizeCharge(chargeSpecs)])
     out.index.name = 'category'
+    print(title)
     out.rename(columns = {0:title}, inplace=True)
     return out
+# %%

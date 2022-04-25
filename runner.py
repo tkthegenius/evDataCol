@@ -86,9 +86,17 @@ if __name__ == '__main__':
     
     outputFile = pd.DataFrame({})
     
-    for id in ids:
-        newURL = "https://ev-database.org" + id
-        print(createDataBase(newURL))
-        outputFile = pd.concat([outputFile,createDataBase(newURL)], axis=1, ignore_index=True)    
+    for i in range(1,52,1):
+        newURL = "https://ev-database.org" + ids[i]
+        try :
+            print(createDataBase(newURL))
+            outputFile = pd.concat([outputFile,createDataBase(newURL)], axis=1, ignore_index=True) 
+        except ConnectionError as e:
+            print(e.args)
+            break
+        except: 
+            pass    
+    dataAdded = len(outputFile)
+    print("added ", dataAdded, " vehicles to the database out of ", len(ids))
     save_results(outputFile, conf.Output_Directory)
     print("Done")
