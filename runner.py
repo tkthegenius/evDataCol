@@ -21,7 +21,7 @@ URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-sli
            'menuTitle': 'About',
            'name': 'EV Database Generator',
            'description': 'Accelerated EV data collector',
-           'version': '1.0.0',
+           'version': '1.6.0',
            'copyright': '2022 TK',
            'developer': 'Taekyu Kim'
        },
@@ -67,12 +67,12 @@ def save_results(collected_data, output):
     now = datetime.datetime.now()
     dateNTime = now.strftime("%Y%m%d_%H%M%S")
     # collected_data = collected_data.reset_index()
-    outputFileDir = output + "/" + dateNTime + "evDatabase.xlsx"
+    outputFileDir = output + "/" + dateNTime + "_evDatabase.xlsx"
     collected_data.to_excel(outputFileDir)
 
 if __name__ == '__main__':
     conf = parse_args()
-    print("Reading file")
+    print("Reading webpage")
     print("Retrieving and saving requested data")
     page = requests.get(URL)
     soupTemp = BeautifulSoup(page.text,'html.parser')
@@ -89,11 +89,8 @@ if __name__ == '__main__':
         newURL = "https://ev-database.org" + ids[i]
         try :
             adder = createDataBase(newURL)
-            print("outputFile: ", outputFile)
-            print("adder: ", adder)
             adder.reset_index(inplace=True)
             outputFile = pd.concat([outputFile,adder], axis=1) 
-            print("outputFile: ", outputFile)
         except ConnectionError as e:
             print(e.args)
             break
@@ -102,6 +99,5 @@ if __name__ == '__main__':
         
     dataAdded = len(outputFile.columns)
     print("added ", dataAdded/2, " vehicles to the database out of ", len(ids))
-    print("outputFile: ", outputFile)
     save_results(outputFile, conf.Output_Directory)
     print("Done")
