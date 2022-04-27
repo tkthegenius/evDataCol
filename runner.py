@@ -14,7 +14,6 @@ from gooey import Gooey, GooeyParser
 
 URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-slider-range:prev~next=0~1200|range-slider-acceleration:prev~next=2~23|range-slider-topspeed:prev~next=110~450|range-slider-battery:prev~next=10~200|range-slider-towweight:prev~next=0~2500|range-slider-fastcharge:prev~next=0~1500|paging:currentPage=0|paging:number=9"
 
-
 @Gooey(program_name="EV Database Generator",
        program_description="The world of EV data in your desktop",
        menu=[{'name': 'Help', 'items': [{
@@ -86,17 +85,23 @@ if __name__ == '__main__':
     
     outputFile = pd.DataFrame({})
     
-    for i in range(1,52,1):
+    for i in range(len(ids)):
         newURL = "https://ev-database.org" + ids[i]
         try :
-            print(createDataBase(newURL))
-            outputFile = pd.concat([outputFile,createDataBase(newURL)], axis=1, ignore_index=True) 
+            adder = createDataBase(newURL)
+            print("outputFile: ", outputFile)
+            print("adder: ", adder)
+            adder.reset_index(inplace=True)
+            outputFile = pd.concat([outputFile,adder], axis=1) 
+            print("outputFile: ", outputFile)
         except ConnectionError as e:
             print(e.args)
             break
         except: 
             pass    
-    dataAdded = len(outputFile)
-    print("added ", dataAdded, " vehicles to the database out of ", len(ids))
+        
+    dataAdded = len(outputFile.columns)
+    print("added ", dataAdded/2, " vehicles to the database out of ", len(ids))
+    print("outputFile: ", outputFile)
     save_results(outputFile, conf.Output_Directory)
     print("Done")

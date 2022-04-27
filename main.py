@@ -26,12 +26,7 @@ def getURLs(URL):
     page = requests.get(URL)
     print(page.status_code)
     if page.status_code == 429:
-        print("The website wants you to take a break from requesting information. Resting for: 30 seconds, then retrying...")
-        time.sleep(30)
-        try:
-            page = requests.get(URL)
-        except:
-            raise ConnectionError("This website does not want you to access anymore information.")
+        raise ConnectionError("This website doesn't want you to access anymore information")
     soupTemp = BeautifulSoup(page.text, 'html.parser')
     titleText = soupTemp.title.text
     titleText = titleText.split('price')[0]
@@ -127,7 +122,9 @@ def createDataBase(URL):
     out = pd.DataFrame({})
     for key in outputCell.keys():
         out = pd.concat([out, tupleAdd(outputCell,key)])
-    chargeSpecs = tuples[len(tuples)-1]
+    for item in tuples:
+        if "Charging Point" in item[1].columns:
+            chargeSpecs = item
     out = pd.concat([out,organizeCharge(chargeSpecs)])
     out.index.name = 'category'
     print(title)
