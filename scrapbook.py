@@ -4,11 +4,10 @@ import os
 import os.path
 import sys
 import json
-import time
-import datetime
-import numpy as np
 import pandas as pd
 from gooey import Gooey, GooeyParser
+
+# In[]:
 
 
 def mustBeDir(pathway):
@@ -27,21 +26,21 @@ def mustBeFile(pathway):
             "What you provided is not a directory. Please enter a valid file")
 
 
-@Gooey(program_name="Company Financial Data Collector",
-       program_description="Speed up your grunt work process",
+@Gooey(program_name="EV Database getter",
+       program_description="read in and create modified excel sheets to fit your analysis ",
        menu=[{'name': 'Help', 'items': [{
            'type': 'AboutDialog',
            'menuTitle': 'About',
            'name': 'EV Data Reader',
-           'description': '',
+           'description': 'this program reads in the database excel file and creates a new organzed excel sheet based on your parameters and maker of choice',
            'version': '1.0.0',
            'copyright': '2022 TK',
            'developer': 'Taekyu Kim'
-        },
+       },
            {'type': 'MessageDialog',
             'menuTitle': 'How to use',
             'name': 'How to use',
-            'message': ""}
+            'message': "pick the original database file as your input, and select the parameters you would like to retrieve from the database. You can specify the maker you'd like to see."}
        ]}])
 def parse_args():
     """ Use GooeyParser to build up the arguments we will use in our script
@@ -86,10 +85,11 @@ def parse_args():
                         gooey_options=dict(
                             full_width=True
                         ),
-                        choices=['pricing','range','performance','battery','charging','energy consumption','additional energy consumption','real energy consumption','safety','dimensions and weight','miscellaneous','charge specification']
-                        ,
+                        choices=['pricing', 'range', 'performance', 'battery', 'charging', 'energy consumption', 'additional energy consumption',
+                                 'real energy consumption', 'safety', 'dimensions and weight', 'miscellaneous', 'charge specification'],
                         default=[
-                            ['performance','energy consumption','real energy consumption','charge specification']
+                            ['performance', 'energy consumption',
+                                'real energy consumption', 'charge specification']
                         ]
                         )
     parser.add_argument('-s',
@@ -101,7 +101,16 @@ def parse_args():
                         ),
                         default="none"
                         )
-                        
+    parser.add_argument('-b',
+                        '--Breakdown',
+                        help='Do you want to break down the vehicles?',
+                        action='store',
+                        gooey_options=dict(
+                            full_width=True
+                        ),
+                        default='No'
+                        )
+
     args = parser.parse_args()
     # Store the values of the arguments so we have them next time we run
     with open(args_file, 'w') as data_file:
@@ -110,6 +119,8 @@ def parse_args():
     return args
 
 # In[]:
+
+
 def getVehicle(vehicle):
     """retrieves the specific vehicle's data"""
     if vehicle in vehicles:
@@ -120,11 +131,13 @@ def getVehicle(vehicle):
     return pd.concat([allDat[allDat.columns[loc]], allDat[vehicle]], axis=1)
 
 # In[]:
+
+
 def getCategory(df, category):
     """retrieves all information of the specific category from
     the given dataframe"""
     out = pd.DataFrame({})
-    for i in range(0, len(df.columns)-1, 2):
+    for i in range(0, len(df.columns), 2):
         col1 = df.columns[i]
         col2 = df.columns[i+1]
         sub1 = df[[col1, col2]]
@@ -134,6 +147,8 @@ def getCategory(df, category):
     return out
 
 # In[]:
+
+
 def getMake(maker):
     """retrieves all vehicles from the given maker using getVehicle()"""
     newList = []
@@ -142,15 +157,40 @@ def getMake(maker):
             newList.append(vehicle)
     out = pd.DataFrame({})
     for vehicle in newList:
-        out = pd.concat([out,getVehicle(vehicle)], axis=1)
-    return out 
+        out = pd.concat([out, getVehicle(vehicle)], axis=1)
+    return out
 
 # In[]:
+
+
 def saveFile(output, out_directory, category):
     fileName = conf.Input_File
     fileName = os.path.splitext(os.path.basename(fileName))[0]
     outputDir = out_directory + "/" + fileName + "_" + category + ".xlsx"
     output.to_excel(outputDir)
+
+# In[]:
+
+
+def breakdown(carName):
+    """breakdown a specific vehicle"""
+    df = out[carName]
+    output = pd.DataFrame({})
+    for key, value in df.iteritems():
+        try:
+            value = eval(value)
+            category = pd.DataFrame([value[0]])
+            category = category.rename(columns={0: 'key'})
+            append = pd.DataFrame([value[1]])
+            append = append.rename(columns={0: 'value'})
+            category = pd.concat([category, append], axis=1)
+            output = pd.concat([output, category], ignore_index=True)
+        except NameError:
+            pass
+        except TypeError:
+            pass
+    return output
+
 
 # In[]:
 if __name__ == '__main__':
@@ -173,15 +213,42 @@ if __name__ == '__main__':
     except RuntimeError as r:
         print(r.args)
     if conf.Maker == 'none' or conf.Maker == "":
-        pass
+        allDat = allDat.loc[:, allDat.columns != allDat.columns[0]]
     else:
         allDat = getMake(conf.Maker)
     out = pd.DataFrame({})
     for x in conf.Parameters:
         out = pd.concat([out, getCategory(allDat, x)])
-    if conf.Maker != "none" and conf.Maker != "":
-        outName = conf.Maker + "_" + "_".join(conf.Parameters) + '.xlsx'
-    else:
-        outName = "evDataBase_" + "_".join(conf.Parameters) + '.xlsx'
-    out.to_excel(conf.Output_Directory + "/" + outName)
 
+    print(out)
+
+    breakdownChart = pd.DataFrame({})
+
+    if conf.Breakdown == "Yes":
+        for vehicle in out.columns:
+            print("breakdownChart: ", breakdownChart)
+            print("breakdown: ", breakdown(vehicle))
+            append = breakdown(vehicle)
+            append.reset_index(drop=True, inplace=True)
+            append.rename(columns={"value": vehicle}, inplace=True)
+            breakdownChart = pd.concat([breakdownChart, append], axis=1)
+        newBreakdown = breakdownChart[breakdownChart.columns != 'keys']
+        separate = False
+        for i in range(len(newBreakdown.columns)-1):
+            if len(newBreakdown[newBreakdown.columns[i]]) == len(newBreakdown[newBreakdown.columns[i+1]]):
+                separate = True
+            else:
+                separate = False
+                break
+        if separate:
+            breakdownChart.set_index('keys', drop=True, inplace=True)
+        out = breakdownChart
+
+    if conf.Maker != "none" or (conf.Maker != "" and " " not in conf.Maker):
+        outName = conf.Maker + "_" + "_".join(conf.Parameters)
+    else:
+        outName = "evDataBase_" + "_".join(conf.Parameters)
+    if conf.Breakdown == "Yes":
+        outName = outName + "_breakdown"
+
+    out.to_excel(conf.Output_Directory + "/" + outName + ".xlsx")

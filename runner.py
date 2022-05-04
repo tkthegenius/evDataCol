@@ -2,17 +2,18 @@ from __future__ import print_function
 
 import os
 import os.path
-import sys
-import pandas as pd 
-import datetime 
+import pandas as pd
+import datetime
 import json
-import requests 
+import time
+import requests
 
 from bs4 import BeautifulSoup
-from main import createDataBase 
+from main import createDataBase
 from gooey import Gooey, GooeyParser
 
 URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-slider-range:prev~next=0~1200|range-slider-acceleration:prev~next=2~23|range-slider-topspeed:prev~next=110~450|range-slider-battery:prev~next=10~200|range-slider-towweight:prev~next=0~2500|range-slider-fastcharge:prev~next=0~1500|paging:currentPage=0|paging:number=9"
+
 
 @Gooey(program_name="EV Database Generator",
        program_description="The world of EV data in your desktop",
@@ -21,7 +22,7 @@ URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-sli
            'menuTitle': 'About',
            'name': 'EV Database Generator',
            'description': 'Accelerated EV data collector',
-           'version': '1.6.0',
+           'version': '1.7.0',
            'copyright': '2022 TK',
            'developer': 'Taekyu Kim'
        },
@@ -54,12 +55,22 @@ def parse_args():
                             full_width=True
                         )
                         )
+    parser.add_argument('-s',
+                        '--startpoint',
+                        help="Enter the startpoint of the list. 0 is the beginning. Pick a number between 0 and 100.",
+                        action='store',
+                        gooey_options=dict(
+                            full_width=True
+                        ),
+                        default=0
+                        )
     args = parser.parse_args()
     # Store the values of the arguments so we have them next time we run
     with open(args_file, 'w') as data_file:
         # Using vars(args) returns the data as a dictionary
         json.dump(vars(args), data_file)
     return args
+
 
 def save_results(collected_data, output):
     """ save created financial data dataframe into selected folder for output
@@ -70,34 +81,41 @@ def save_results(collected_data, output):
     outputFileDir = output + "/" + dateNTime + "_evDatabase.xlsx"
     collected_data.to_excel(outputFileDir)
 
+
 if __name__ == '__main__':
     conf = parse_args()
     print("Reading webpage")
     print("Retrieving and saving requested data")
     page = requests.get(URL)
-    soupTemp = BeautifulSoup(page.text,'html.parser')
-    cars = soupTemp.findAll('div',{'class':'title-wrap'})
+    soupTemp = BeautifulSoup(page.text, 'html.parser')
+    cars = soupTemp.findAll('div', {'class': 'title-wrap'})
     titles = []
     ids = []
     for x in cars:
-        titles.append(x.find('a',{'class':'title'}).text)
-        ids.append(x.find('a',{'class':'title'})['href'])
-    
+        titles.append(x.find('a', {'class': 'title'}).text)
+        ids.append(x.find('a', {'class': 'title'})['href'])
+
     outputFile = pd.DataFrame({})
-    
-    for i in range(len(ids)):
+
+    startpoint = int(conf.startpoint)
+    endpoint = (startpoint + 30) % len(ids)
+
+    for i in range(startpoint, endpoint, 1):
         newURL = "https://ev-database.org" + ids[i]
-        try :
+        try:
             adder = createDataBase(newURL)
             adder.reset_index(inplace=True)
-            outputFile = pd.concat([outputFile,adder], axis=1) 
+            outputFile = pd.concat([outputFile, adder], axis=1)
+            print("sleeping for 20 seconds.............")
+            time.sleep(20)
         except ConnectionError as e:
             print(e.args)
             break
-        except: 
-            pass    
-        
+        except:
+            pass
+
     dataAdded = len(outputFile.columns)
-    print("added ", dataAdded/2, " vehicles to the database out of ", len(ids))
+    print("added ", int(dataAdded/2),
+          " vehicles to the database out of ", len(ids))
     save_results(outputFile, conf.Output_Directory)
     print("Done")
