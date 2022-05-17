@@ -5,7 +5,6 @@ import time
 import pandas as pd 
 from bs4 import BeautifulSoup
 
-
 # In[]:
 def organize(arr):
     returnArr = []
@@ -16,7 +15,7 @@ def organize(arr):
         if i == len(arr)-1:
             appender = pd.DataFrame(arr[i])
         else:
-            appender = pd.concat([arr[i],arr[i+1]],ignore_index=True)
+            appender = pd.concat([arr[i],arr[i+1]],ignore_index=True,sort=False)
         returnArr.append(appender)
     return returnArr
 
@@ -26,7 +25,7 @@ def getURLs(URL):
     page = requests.get(URL)
     print(page.status_code)
     if page.status_code == 429:
-        raise ConnectionError("This website doesn't want you to access anymore information")
+        raise ConnectionError("Congratulations! You have been successfully blacklisted by this website. You can try again in 2 days, or on someone else's computer that hasn't been used yet.")
     soupTemp = BeautifulSoup(page.text, 'html.parser')
     titleText = soupTemp.title.text
     titleText = titleText.split('price')[0]
@@ -104,7 +103,7 @@ def organizeCharge(details):
     details2 = details.drop(keys[0], axis=1)
     details['join'] = details2.apply(lambda row: '----'.join(row.values.astype(str)), axis=1)
     tempOutput = details[[keys[0],'join']].apply(tuple, axis=1)
-    output = pd.concat([output, tempOutput])
+    output = pd.concat([output, tempOutput],sort=False)
     idx = pd.Series(['charge specification']*len(output))
     output = output.set_index(idx)
     return output
@@ -121,11 +120,11 @@ def createDataBase(URL):
     title, tuples, outputCell = getURLs(URL)
     out = pd.DataFrame({})
     for key in outputCell.keys():
-        out = pd.concat([out, tupleAdd(outputCell,key)])
+        out = pd.concat([out, tupleAdd(outputCell,key)],sort=False)
     for item in tuples:
         if "Charging Point" in item[1].columns:
             chargeSpecs = item
-    out = pd.concat([out,organizeCharge(chargeSpecs)])
+    out = pd.concat([out,organizeCharge(chargeSpecs)],sort=False)
     out.index.name = 'category'
     print(title)
     out.rename(columns = {0:title}, inplace=True)

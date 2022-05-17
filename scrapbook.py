@@ -172,23 +172,17 @@ def saveFile(output, out_directory, category):
 # In[]:
 
 
-def breakdown(carName):
+def breakdown(df):
     """breakdown a specific vehicle"""
-    df = out[carName]
+    columns = df.columns
     output = pd.DataFrame({})
-    for key, value in df.iteritems():
-        try:
-            value = eval(value)
-            category = pd.DataFrame([value[0]])
-            category = category.rename(columns={0: 'key'})
-            append = pd.DataFrame([value[1]])
-            append = append.rename(columns={0: 'value'})
-            category = pd.concat([category, append], axis=1)
-            output = pd.concat([output, category], ignore_index=True)
-        except NameError:
-            pass
-        except TypeError:
-            pass
+    for car in columns:
+        newColName = car + "_data"
+        appender = df
+        print(appender[car])
+        print(type(appender[car]))
+        appender[[car, newColName]] = appender[car].str.split("', '", expand=True)
+    output = pd.concat([output, appender], axis = 1)
     return output
 
 
@@ -222,27 +216,21 @@ if __name__ == '__main__':
 
     print(out)
 
-    breakdownChart = pd.DataFrame({})
-
     if conf.Breakdown == "Yes":
-        for vehicle in out.columns:
-            print("breakdownChart: ", breakdownChart)
-            print("breakdown: ", breakdown(vehicle))
-            append = breakdown(vehicle)
-            append.reset_index(drop=True, inplace=True)
-            append.rename(columns={"value": vehicle}, inplace=True)
-            breakdownChart = pd.concat([breakdownChart, append], axis=1)
-        newBreakdown = breakdownChart[breakdownChart.columns != 'keys']
+        newBreakdown = breakdown(out)
         separate = False
         for i in range(len(newBreakdown.columns)-1):
+            print(len(newBreakdown[newBreakdown.columns[i]]))
+            print(len(newBreakdown[newBreakdown.columns[i+1]]))
             if len(newBreakdown[newBreakdown.columns[i]]) == len(newBreakdown[newBreakdown.columns[i+1]]):
                 separate = True
             else:
                 separate = False
                 break
+        print(newBreakdown)
         if separate:
-            breakdownChart.set_index('keys', drop=True, inplace=True)
-        out = breakdownChart
+            newBreakdown.set_index(out.columns[0], drop=True, inplace=True)
+        out = newBreakdown
 
     if conf.Maker != "none" or (conf.Maker != "" and " " not in conf.Maker):
         outName = conf.Maker + "_" + "_".join(conf.Parameters)
