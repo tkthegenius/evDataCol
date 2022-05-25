@@ -22,7 +22,7 @@ URL = "https://ev-database.org/#sort:path~type~order=.rank~number~desc|range-sli
            'menuTitle': 'About',
            'name': 'EV Database Generator',
            'description': 'Accelerated EV data collector',
-           'version': '2.0.0',
+           'version': '2.2.0',
            'copyright': '2022 TK',
            'developer': 'Taekyu Kim'
        },
@@ -106,8 +106,8 @@ if __name__ == '__main__':
             adder = createDataBase(newURL)
             adder.reset_index(inplace=True)
             outputFile = pd.concat([outputFile, adder], axis=1, sort=False)
-            print("sleeping for 100 seconds.............")
-            time.sleep(100)
+            print("sleeping for 120 seconds.............")
+            time.sleep(120)
         except ConnectionError as e:
             print(e.args)
             break
