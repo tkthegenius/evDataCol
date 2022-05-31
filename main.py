@@ -15,12 +15,19 @@ def organize(arr):
         if i == len(arr)-1:
             appender = pd.DataFrame(arr[i])
         else:
+            if type(arr[i].columns[0]) == tuple:
+                header = []
+                for item in arr[i].columns:
+                    header.append(item[0])
+                arr[i].set_axis(header,axis=1,inplace=True)
             appender = pd.concat([arr[i],arr[i+1]],ignore_index=True,sort=False)
         returnArr.append(appender)
     return returnArr
 
 # In[]:
 def getURLs(URL):
+    if URL[0] == " ":
+        URL = URL[1:len(URL)]
     print ("URL: ", URL)
     page = requests.get(URL)
     print(page.status_code)
@@ -81,6 +88,8 @@ def getURLs(URL):
     outputCell = {}
     for x in tuples:
         key = x[0]
+        if key == 'additional information':
+            break
         value = x[1]
         if key != 'charge specifications':
             if key not in keys:
