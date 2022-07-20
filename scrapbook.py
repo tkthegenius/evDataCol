@@ -8,8 +8,6 @@ import pandas as pd
 from gooey import Gooey, GooeyParser
 
 # In[]:
-
-
 def mustBeDir(pathway):
     if os.path.isdir(pathway):
         return pathway
